@@ -195,10 +195,71 @@ Sent 1 packets
      seq= 0x0
 ```
 
-A more complex example is a simple web request. For this to work, install apache2 on a target host (for example a raspberry pi), and make not configuration changes (so that the default apache2 page is accessible on port 80). Use a browser to double check the webserver is accessible (`http://192.168.1.190`).
-
-
+A more complex example is a simple web request. For this to work, install apache2 on a target host (for example a raspberry pi), and make not configuration changes (so that the default apache2 page is accessible on port 80). Use a browser to double check the webserver is accessible (`http://192.168.1.190`). Then, perform the following steps (the TCP handshake) as described [here](https://stackoverflow.com/questions/4750793/python-scapy-or-the-like-how-can-i-create-an-http-get-request-at-the-packet-leve)
 
 ```python
+>>> syn = IP(dst="192.168.1.190") / TCP(dport=80, flags='S')
+>>> syn.show()
+###[ IP ]### 
+  version= 4
+  ihl= None
+  tos= 0x0
+  len= None
+  id= 1
+  flags= 
+  frag= 0
+  ttl= 64
+  proto= tcp
+  chksum= None
+  src= 192.168.1.210
+  dst= 192.168.1.190
+  \options\
+###[ TCP ]### 
+     sport= ftp_data
+     dport= http
+     seq= 0
+     ack= 0
+     dataofs= None
+     reserved= 0
+     flags= S
+     window= 8192
+     chksum= None
+     urgptr= 0
+     options= []
+
+# Receive SYN acknowledgement (note the SA flag)
+>>> syn_ack = sr1(syn)
+###[ IP ]### 
+  version= 4
+  ihl= 5
+  tos= 0x0
+  len= 44
+  id= 0
+  flags= DF
+  frag= 0
+  ttl= 64
+  proto= tcp
+  chksum= 0xb5eb
+  src= 192.168.1.190
+  dst= 192.168.1.210
+  \options\
+###[ TCP ]### 
+     sport= http
+     dport= ftp_data
+     seq= 3955460934
+     ack= 1
+     dataofs= 6
+     reserved= 0
+     flags= SA
+     window= 64240
+     chksum= 0xa0d5
+     urgptr= 0
+     options= [('MSS', 1460)]
+
+# Now perform the request
+>>> get_string = 'GET / HTTP/1.1\r\nHost: 192.168.1.190\r\n\r\n'
+>>> req = IP(dst="192.168.1.190") / TCP(dport=80, sport=syn_ack[TCP].dport,
+             seq=syn_ack[TCP].ack, ack=syn_ack[TCP].seq + 1, flags='A') / get_string
+reply = sr1(req)
 
 ```
