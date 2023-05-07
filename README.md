@@ -3,9 +3,7 @@
 Install scapy with 
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install scapy matplotlib cryptography
+sudo apt install python3-scapy
 ```
 
 ## IP packets
@@ -16,6 +14,24 @@ Run `scapy` to get the interactive terminal, and run
 >>> raw(IP())
 >>> IP(_)
 <IP  version=4 ihl=5 tos=0x0 len=20 id=1 flags= frag=0 ttl=64 proto=hopopt chksum=0x7ce7 src=127.0.0.1 dst=127.0.0.1 |>
+
+# You can pretty-print a packet using show()
+>>> p = IP()
+>>> p.show()
+###[ IP ]### 
+  version= 4
+  ihl= None
+  tos= 0x0
+  len= None
+  id= 1
+  flags= 
+  frag= 0
+  ttl= 64
+  proto= hopopt
+  chksum= None
+  src= 127.0.0.1
+  dst= 127.0.0.1
+  \options\
 ```
 
 The fields are listed in the order they are present in an IP packet. An IP packet contains two parts: a header (at least 20 octets) and a data section. 
@@ -43,6 +59,8 @@ The TOS (type of service) field (the old name) is split into two fields:
 
 - **Protocol** (8 bits): the format of the data payload. The IP packet data payload encapsulates protocols at higher levels of the internet protocol stack, including *TCP* (identified by `protocol == 6`), *ICMP* (`protocol == 2`), and *UDP* (`protocol == 17`). 
 
+- **Header checksum** (32 bits): checksum of the IP packet header. The checksum is verified at each router (which must also recalculate the checksum when it decrements *TTL*). If a checksum check fails, the packet is dropped. The data field of the IP packet is not covered by the checksum; that is the responsibility of the protocol encapsulated by the IP packet.
+
 - **Source IP address** (32 bits): the IP address of the host that is apparently sending this IP packet (may not be the real host, due to *network address translation*).
 
 - **Destination IP address** (32 bits): the IP address where the IP packet should be sent. The destination defines how the IP packet is routed (at each hop, a host either forwards the packet to the final destination on one of its local networks, or it sends the packet to a gateway (another host) according to the value in this destination IP address field.
@@ -59,5 +77,128 @@ The format of the data payload is defined in the *protocol* header field, and ma
 # / is the composition (pipe) operator in scapy
 >>> IP()/TCP()
 <IP  frag=0 proto=tcp |<TCP  |>>
+
+# Full output
+>>> p = IP()/TCP()
+>>> p.show()
+###[ IP ]### 
+  version= 4
+  ihl= None
+  tos= 0x0
+  len= None
+  id= 1
+  flags= 
+  frag= 0
+  ttl= 64
+  proto= tcp
+  chksum= None
+  src= 127.0.0.1
+  dst= 127.0.0.1
+  \options\
+###[ TCP ]### 
+     sport= ftp_data
+     dport= http
+     seq= 0
+     ack= 0
+     dataofs= None
+     reserved= 0
+     flags= S
+     window= 8192
+     chksum= None
+     urgptr= 0
+     options= []
 ```
 
+Some common protocols are described briefly below
+
+#### Internet control message protocol (ICMP)
+
+The ICMP protocol is used to relay information such as error messages between hosts. It is often received as the reply following another operation, and are sent to the source IP of the originating packet. The ICMP format contains a header, containing a *type* and *code* field that together specify the message. This encodes familiar responses such as *Destination host unreachable* or other responses used by other operations (such as *echo request* used for ping). 
+
+To create an ICMP packet in scapy with default values, run:
+
+```python
+>>> raw(ICMP())
+>>> ICMP(_)
+<ICMP  type=echo-request code=0 chksum=0xf7ff id=0x0 seq=0x0 |>
+```
+
+#### Transmission control protocol (TCP)
+
+The main data transmission protocol of the internet; packets are delivered with acknowledgement, so the sender is aware the transmission succeeded (the protocol is *reliable*). The TCP protocol establishes a pipe-like data transfer path between two hosts, that is opened using a multi-step TCP handshake and closed in a similar fashion.
+
+To create a TCP packet in scapy, run:
+
+```python
+>>> raw(TCP())
+>>> TCP(_)
+<TCP  sport=ftp_data dport=http seq=0 ack=0 dataofs=5 reserved=0 flags=S window=8192 chksum=0x0 urgptr=0 |>
+```
+
+### Sending IP packets
+
+You need root privileges to send packets, so run `sudo scapy` to open the shell. A simple packet to send is the *echo request* (using ICMP), which is a ping.
+
+```python
+# To send without receiving
+>>> p = IP(dst="192.168.1.190")/ICMP()
+>>> p.show()
+###[ IP ]### 
+  version= 4
+  ihl= None
+  tos= 0x0
+  len= None
+  id= 1
+  flags= 
+  frag= 0
+  ttl= 64
+  proto= icmp
+  chksum= None
+  src= 192.168.1.210
+  dst= 192.168.1.190
+  \options\
+###[ ICMP ]### 
+     type= echo-request
+     code= 0
+     chksum= None
+     id= 0x0
+     seq= 0x0
+
+# To send without receiving
+>>> send(p)
+Sent 1 packets
+
+# To send and receive
+>>> r = sr1(p)  
+
+# View the response
+>>> r.show()
+###[ IP ]### 
+  version= 4
+  ihl= 5
+  tos= 0x0
+  len= 28
+  id= 2681
+  flags= 
+  frag= 0
+  ttl= 64
+  proto= icmp
+  chksum= 0xeb87
+  src= 192.168.1.190
+  dst= 192.168.1.210
+  \options\
+###[ ICMP ]### 
+     type= echo-reply
+     code= 0
+     chksum= 0xffff
+     id= 0x0
+     seq= 0x0
+```
+
+A more complex example is a simple web request. For this to work, install apache2 on a target host (for example a raspberry pi), and make not configuration changes (so that the default apache2 page is accessible on port 80). Use a browser to double check the webserver is accessible (`http://192.168.1.190`).
+
+
+
+```python
+
+```
