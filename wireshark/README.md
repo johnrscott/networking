@@ -1,6 +1,29 @@
-# Wireshark 
+# Tshark and Wireshark 
 
-Install on Ubuntu 22.04 as follows:
+## Installing tshark
+
+See [the RPI readme](../testbench/README.md) to configure a Rasbperry Pi 3B+ with tshark installed. To install tshark manually on Ubuntu, run
+
+```bash
+# Say yes to allow non-root users to capture packets
+sudo apt install tshark
+# Add yourself to the wireshark group
+sudo usermod -aG wireshark {your-username}
+```
+
+You can then capture packets using
+
+```bash
+# Specify the interface with -i, any capture filters with -f
+# and the output file with -w. You do not need sudo if you are in
+# the wireshark group. End capturing with Ctrl-C
+tshark -i eth0 -f "host 192.168.1.89" -w cap.lpc
+
+# To read a previous capture file, run
+tshark -r cap.lpc
+```
+
+## Installing Wireshark Ubuntu 22.04
 
 ```bash
 sudo apt install wireshark-qt
@@ -46,4 +69,11 @@ sudo ufw enable
 
 (This assumes the firewall was previously disabled). The client/server do not realise anything is wrong until the client tries to send a packet. Since the data never reaches the server, no ACK is sent, and the client will keep retrying, with progressively longer delays between tries. If the firewall is disabled during this period, the transmission will conclude successfully as normal.
 
+## Useful capture filters
 
+Capture filters are described in the [wireshark documentation](https://wiki.wireshark.org/CaptureFilters). Some useful filters are as follows (replace `{...}` with a value):
+
+- `host {ip-address}`: restricts to packets containing this IP as the source or destination.
+- `tcp`: restrict to TCP packets only (similarly `udp` and `icmp` restrict to packets with those protocols)
+
+Filters can be combined with `and` and `or` (e.g. `host 1.2.3.4 and tcp`). Parentheses may be used to group filters.

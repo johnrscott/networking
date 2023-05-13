@@ -1,4 +1,4 @@
-# Testing setup
+# Configuring a Raspberry Pi for Testing
 
 Experiments in this repository use a Raspberry Pi 3b+, configured as described in this folder. The raspberry pi is managed by [Ansible](https://docs.ansible.com/ansible/latest/getting_started/index.html), so the configuration is completely defined by the contents of this folder. This makes a repeatable setup that can be recreated the same every time. If you make any manual modifications which break anything, you can just wipe the SD card and start again.
 
