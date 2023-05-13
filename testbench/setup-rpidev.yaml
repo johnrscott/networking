@@ -1,0 +1,30 @@
+---
+- name: basic configuration
+  hosts: all
+  become: true
+  tasks:
+    - name: update and upgrade all packages
+      ansible.builtin.apt:
+        upgrade: true
+        update_cache: true    
+
+- name: install tshark
+  hosts: all
+  become: true
+  tasks:
+    - name: allow non-root user to capture traffic
+      debconf:
+        name='wireshark-common'
+        question='wireshark-common/install-setuid'
+        vtype='boolean'
+        value='true'
+    - name: install the tshark package
+      ansible.builtin.apt:
+        name: tshark
+        state: latest
+        update_cache: true
+    - name: add ansible to the wireshark group
+      ansible.builtin.user:
+        name: ansible
+        groups: wireshark
+        append: true
